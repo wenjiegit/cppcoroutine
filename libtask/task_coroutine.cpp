@@ -150,9 +150,13 @@ void task_coroutine::taskready(Task_S* t) {
 void task_coroutine::schedule() {
     while(true) {
 		task_list_empty();
+        Task_S* first_task;
+        {
+        	std::lock_guard<std::mutex> locker(_mutex);
+        	first_task = _task_list.front();
+            _task_list.pop_front();
+        }
 
-        auto first_task = _task_list.front();
-        _task_list.pop_front();
         first_task->ready = 0;
 
         _taskrunning = first_task;

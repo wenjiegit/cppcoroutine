@@ -8,6 +8,7 @@
 #include <list>
 #include <stdarg.h>
 #include <functional>
+#include <map>
 
 #define STACK_DEF_SIZE (256*1024)
 
@@ -25,6 +26,14 @@ public:
     int taskyield(void);
     void schedule();
 
+    void set_thread_index(int index) {
+        _thread_index = index;
+    }
+
+    int get_thread_index() {
+        return _thread_index;
+    }
+    
 private:
     void contextswitch(Context *from, Context *to);
     void taskexit(Task_S *t);
@@ -38,6 +47,7 @@ private:
 private:
     std::shared_ptr<std::thread> _thread_ptr;
     std::list<Task_S*> _task_list;
+    std::map<unsigned long long, Task_S*> _sleep_task_map;
     Task_S* _taskrunning;
     int	_taskcount;
     int _tasknswitch;
@@ -46,6 +56,7 @@ private:
 
     std::mutex _mutex;
     std::condition_variable_any _noempty_cond;
+    int _thread_index;
 };
 
 }

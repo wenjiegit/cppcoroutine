@@ -13,7 +13,7 @@ TARGET=cppco_demo
 INCLUDES = -I. -I./libtask
 
 
-C++FILES = ./libtask/task_base.cpp ./libtask/task_coroutine.cpp ./cppco_demo.cpp
+C++FILES = ./libtask/cppco.cpp ./libtask/task_coroutine.cpp ./cppco_demo.cpp
 
 OBJFILE = $(CFILES:.c=.o) $(C++FILES:.cpp=.o)  
 
