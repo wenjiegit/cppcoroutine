@@ -104,6 +104,7 @@ void setmcontext(const mcontext_t*);
 #define	getcontext(u)	getmcontext(&(u)->uc_mcontext)
 #endif
 
+namespace cpp_coroutine {
 typedef struct Context Context;
 
 struct Context
@@ -127,4 +128,14 @@ typedef struct {
     void    *co_p;
 }Task_S;
 
+inline unsigned long long now_ms()
+{
+	struct timeval tv;
+
+	if(gettimeofday(&tv, 0) < 0)
+		return -1;
+	return (unsigned long long)(tv.tv_sec*1000 + tv.tv_usec/1000);
+}
+
+}
 #endif //TASK_PUB_H

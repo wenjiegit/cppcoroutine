@@ -3,8 +3,17 @@
 using namespace cpp_coroutine;
 
 void demo_func(void* index, std::shared_ptr<task_coroutine> task_co_ptr) {
-    printf("demo_func index=%d, thread index=%d\r\n", *(int*)index, task_co_ptr->get_thread_index());
+    unsigned long long sleep_ms = (unsigned long long)(*(int*)index + 1000);
 
+    if ((*(int*)index % 2) == 0) {
+        sleep_ms = (unsigned long long)(*(int*)index + 1000);
+    } else {
+        sleep_ms = (unsigned long long)(*(int*)index + 3000);
+    }
+    
+    task_co_ptr->co_sleep(sleep_ms);
+    printf("demo_func index=%d, sleep_ms=%u, thread index=%d\r\n", 
+        *(int*)index, sleep_ms, task_co_ptr->get_thread_index());
     return;
 }
 

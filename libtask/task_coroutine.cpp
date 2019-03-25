@@ -50,6 +50,44 @@ void task_coroutine::needstack(int n) {
 	}
 }
 
+unsigned long long task_coroutine::co_sleep(unsigned long long sleep_ms) {
+    unsigned long long now_ull = now_ms();
+    _taskrunning->alarmtime = now_ull + sleep_ms;
+    {
+        std::lock_guard<std::mutex> locker(_mutex);
+        _sleep_task_map.insert(std::pair<unsigned long long, Task_S*>(_taskrunning->alarmtime, _taskrunning));
+		//printf("co_sleep now:%u, alarmtime:%u, sleep_ms:%u, sleep size:%d\r\n", 
+	    //now_ull, _taskrunning->alarmtime, sleep_ms, _sleep_task_map.size());
+    }
+
+	_noempty_cond.notify_one();
+    taskswitch();
+	return now_ms() - now_ull;
+}
+
+void task_coroutine::sleep_wakeup() {
+    std::lock_guard<std::mutex> locker(_mutex);
+	if (_sleep_task_map.empty()) {
+		return;
+	}
+
+	auto first_iter = _sleep_task_map.begin();
+	auto task_p = first_iter->second;
+    unsigned long long now_ul = now_ms();
+
+	if (now_ul < task_p->alarmtime) {
+		//printf("sleep_wakeup not wakeup now:%u, alarmtime:%u\r\n", now_ul, task_p->alarmtime);
+		return;
+	}
+	//printf("sleep_wakeup now:%u, alarmtime:%u\r\n", now_ul, task_p->alarmtime);
+    _sleep_task_map.erase(first_iter);
+	
+	//taskread()
+	task_p->ready = 1;
+	_task_list.push_back(task_p);
+    _noempty_cond.notify_one();
+}
+
 void task_coroutine::taskswitch() {
 	needstack(0);
 	contextswitch(&_taskrunning->context, &_taskschedcontext);
@@ -130,13 +168,15 @@ int task_coroutine::taskcreate(std::function<void()> func_obj, uint stack) {
 bool task_coroutine::task_list_empty() {
     std::lock_guard<std::mutex> locker(_mutex);
 
-    bool ret = _task_list.empty();
-    
-    if (ret || (_taskcount <= 0)) {
+    int task_size = _task_list.size();
+    int sleep_size = _sleep_task_map.size();
+
+    //printf("task size:%d, _taskcount=%d, sleep size:%d\r\n", task_size, _taskcount, sleep_size);
+    if (((task_size == 0) || (_taskcount <= 0)) && (sleep_size == 0) ) {
         _noempty_cond.wait(_mutex);
     }
     
-    return ret;
+    return true;
 }
 
 void task_coroutine::taskready(Task_S* t) {
@@ -150,24 +190,30 @@ void task_coroutine::taskready(Task_S* t) {
 void task_coroutine::schedule() {
     while(true) {
 		task_list_empty();
-        Task_S* first_task;
+        Task_S* first_task = nullptr;
         {
         	std::lock_guard<std::mutex> locker(_mutex);
-        	first_task = _task_list.front();
-            _task_list.pop_front();
+			if (!_task_list.empty()) {
+        	    first_task = _task_list.front();
+                _task_list.pop_front();
+			}
         }
 
-        first_task->ready = 0;
-
-        _taskrunning = first_task;
-        contextswitch(&_taskschedcontext, &first_task->context);
-
-        _taskrunning = nullptr;
-		if(first_task->exiting){
-			if(!first_task->system)
-				_taskcount--;
-			free(first_task);
+        if (first_task) {
+            first_task->ready = 0;
+    
+            _taskrunning = first_task;
+            contextswitch(&_taskschedcontext, &first_task->context);
+    
+            _taskrunning = nullptr;
+		    if(first_task->exiting){
+		    	if(!first_task->system)
+		    		_taskcount--;
+		    	free(first_task);
+		    }
 		}
+
+		sleep_wakeup();
     };
 }
 
