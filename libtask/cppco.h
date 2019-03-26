@@ -22,13 +22,15 @@ public:
         auto coroutine_obj = _coroutine_ptr_vec[random_index];
 
         auto usua_func_obj = std::bind(func_pm, param_p, coroutine_obj);
-        
+
         coroutine_obj->taskcreate(usua_func_obj);
         return random_index;
     }
 
 private:
     static std::vector<std::shared_ptr<task_coroutine>> _coroutine_ptr_vec;
+    static std::mutex _mutex;
+    static bool _init;
 };
 
 }

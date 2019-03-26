@@ -8,17 +8,18 @@ namespace cpp_coroutine {
 static std::mutex net_g_mutex;
 static bool is_running;
 
-static void onwork() {
+void net_co_onwork(void* param_p, std::shared_ptr<task_coroutine> self_co_ptr) {
     while(true) {
 
     };
 }
 
 void net_init() {
+	cppco::task_init();
     std::lock_guard<std::mutex> locker(net_g_mutex);
     if (!is_running) {
         is_running = true;
-        cppco::coroutine_create(onwork);
+        cppco::coroutine_create(net_co_onwork, nullptr);
     }
 }
 

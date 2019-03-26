@@ -14,10 +14,13 @@
 
 namespace cpp_coroutine {
 
+extern void net_co_onwork(void* param_p, std::shared_ptr<task_coroutine> self_co_ptr);
+
 class task_coroutine {
 public:
     friend class cppco;
     friend void taskstart(unsigned int y, unsigned int x);
+    friend void net_co_onwork(void* param_p, std::shared_ptr<task_coroutine> self_co_ptr);
 
     task_coroutine();
     ~task_coroutine();
