@@ -40,7 +40,6 @@ private:
 
 private:
     int _fd;
-    int _epfd;
 };
 }
 

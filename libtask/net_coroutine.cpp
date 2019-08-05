@@ -3,14 +3,35 @@
 
 #include <memory.h>
 #include <mutex>
+#include <sys/epoll.h>
 
 namespace cpp_coroutine {
 static std::mutex net_g_mutex;
 static bool is_running;
 
-void net_co_onwork(void* param_p, std::shared_ptr<task_coroutine> self_co_ptr) {
-    while(true) {
+const int MAXEVENTS = 1024;
 
+void net_co_onwork(void* param_p, std::shared_ptr<task_coroutine> self_co_ptr) {
+	int epfd = epoll_create(0);
+    struct epoll_event *events_list = (struct epoll_event*)malloc(MAXEVENTS, sizeof(struct epoll_event));
+
+    if (epfd <= 0) {
+		printf("epoll_create error.\r\n");
+		exit(0);
+	}
+
+    while(true) {
+		//if there are other tasks running, net has to wait for cpu.
+        while(self_co_ptr->taskyield() > 0) ;
+
+		int waitms = self_co_ptr->get_sleep_waitms();
+
+        int active_num = epoll_wait (efd, events, MAXEVENTS, -1);
+
+		for (int index; index < active_num; index++) {
+			struct epoll_event pollevent = events_list[index];
+			
+		}
     };
 }
 

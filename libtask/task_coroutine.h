@@ -48,6 +48,8 @@ private:
     //sleeping function wakeup and taskready.
     void sleep_wakeup();
 
+    int get_sleep_waitms();
+    
     //add current running function to task list, give up running state by calling taskswitch()
     int taskyield(void);
 

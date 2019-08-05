@@ -65,6 +65,29 @@ unsigned long long task_coroutine::co_sleep(unsigned long long sleep_ms) {
 	return now_ms() - now_ull;
 }
 
+int task_coroutine::get_sleep_waitms() {
+	std::lock_guard<std::mutex> locker(_mutex);
+	int waitms = 10;
+
+    if (_sleep_task_map.empty()) {
+		return waitms;
+	}
+
+	unsigned long long now_t = now_ms();
+
+	auto first_iter = _sleep_task_map.begin();
+	unsigned long long warning_t = first_iter->first;
+
+	if (now_t >= warning_t) {
+		waitms = 0;
+	} else if (now_t + 5*1000 >= warning_t) {
+		waitms = int(warning_t - now_t);
+	} else {
+		waitms = 5000;
+	}
+	return waitms;
+}
+
 void task_coroutine::sleep_wakeup() {
     std::lock_guard<std::mutex> locker(_mutex);
 	if (_sleep_task_map.empty()) {
