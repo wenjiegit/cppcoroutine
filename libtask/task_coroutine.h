@@ -15,6 +15,8 @@
 namespace cpp_coroutine {
 
 class task_coroutine;
+class listen_coroutine;
+class net_coroutine;
 
 extern void net_co_onwork(void* param_p, std::shared_ptr<task_coroutine> self_co_ptr);
 extern void net_init();
@@ -22,6 +24,9 @@ extern void net_run();
 
 class task_coroutine {
 public:
+    friend class listen_coroutine;
+    friend class net_coroutine;
+    
     friend void taskstart(unsigned int y, unsigned int x);
     friend void net_co_onwork(void* param_p, std::shared_ptr<task_coroutine> self_co_ptr);
     friend void net_init();
@@ -55,7 +60,7 @@ private:
     void contextswitch(Context *from, Context *to);
 
     //set exit bit, call taskswitch() to switch to a new function
-    void taskexit(Task_S *t);
+    void taskexit();
 
     //malloc a Task_S struct and make context
     Task_S* taskalloc(std::function<void()> func_obj, uint stack);

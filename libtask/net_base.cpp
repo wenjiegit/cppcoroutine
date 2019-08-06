@@ -7,15 +7,16 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
-#include <sys/poll.h>
+#include <sys/epoll.h>
 #include <string>
+#include <fcntl.h>
 
 namespace cpp_coroutine {
 
 #define EVENT_LIST_COUNT 256
 
 int s_epfd = 0;
-std::unordered_map<int, Task_S*> s_epoll_task_map;//fd-->Task*
+std::unordered_map<int, Task_S*> s_epoll_task_map;//fd-->Task_S*
 
 extern std::shared_ptr<task_coroutine> get_coroutine();
 
@@ -23,7 +24,11 @@ void net_init() {
     if (s_epfd) {
         return;
     } 
-    s_epfd = epoll_create(0);
+    s_epfd = epoll_create(EVENT_LIST_COUNT);
+    if (s_epfd <= 0) {
+        exit(0);
+    }
+    printf("epoll handle=%d\r\n", s_epfd);
 
     get_coroutine()->taskcreate(net_run);
 
@@ -32,6 +37,7 @@ void net_init() {
 
 void net_run() {
     struct epoll_event ev_list[EVENT_LIST_COUNT];
+    printf("net_run is starting...\r\n");
 
     while(true) {
         int yield_ret = 0;
@@ -44,7 +50,7 @@ void net_run() {
         bool sleep_empty = get_coroutine()->_sleep_task_map.empty();
 
         if (sleep_empty) {
-            ms = 2000;
+            ms = 0;
         } else {
             auto now_ts = now_ms();
             auto first_iter = get_coroutine()->_sleep_task_map.begin();
@@ -52,20 +58,18 @@ void net_run() {
 
             if (now_ts >= t->alarmtime) {
                 ms = 0;
-            } else if (now_ts + 5*1000*1000*1000 >= t->alarmtime) {
-                ms = (t->alarmtime - now_ts) / 1000000;
             } else {
-                ms = 5000;
+                ms = 10;
             }
         }
-
-        int ev_count = epoll(s_epfd, ev_list, EVENT_LIST_COUNT, ms);
+        int ev_count = epoll_wait(s_epfd, ev_list, EVENT_LIST_COUNT, ms);
         for(int index = 0; index < ev_count; index++) {
             if (((ev_list[index].events & EPOLLIN) == EPOLLIN) || ((ev_list[index].events & EPOLLOUT) == EPOLLOUT)) {
                 int read_fd = ev_list[index].data.fd;
                 if (read_fd < 0) {
                     continue;
                 }
+                printf("epoll active fd:%d\r\n", read_fd);
                 auto iter = s_epoll_task_map.find(read_fd);
                 if (iter != s_epoll_task_map.end()) {//active recv/send task
                     Task_S* net_task_item = (Task_S*)(iter->second);
@@ -102,7 +106,8 @@ int parseip(const std::string& hostname, uint32_t *ip)
 	unsigned char addr[4];
 	int i, x;
 	const char* hostip_sz = hostname.c_str();
-    char p[80];
+    char data[80];
+    char* p = data;
 
     strcpy(p, hostip_sz);
 	for(i=0; i<4 && *p; i++){

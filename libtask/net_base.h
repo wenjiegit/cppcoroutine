@@ -1,6 +1,7 @@
 #ifndef NET_BASE_H
 #define NET_BASE_H
 #include <string>
+#include <memory>
 
 #define INVALID_SOCKET (-1)
 
@@ -21,6 +22,8 @@ class net_conn;
 
 class net_listen {
 public:
+    net_listen(){};
+    virtual ~net_listen() {};
     virtual std::shared_ptr<net_conn> accept_conn() = 0;
     virtual void close_conn() = 0;
     virtual ADDR_INFO get_addr() = 0;
@@ -28,8 +31,13 @@ public:
 
 class net_conn {
 public:
-    virtual int read_data(unsigned char* data_p, int data_size) = 0;
-    virtual int write_data(unsigned char* data_p, int data_size) = 0;
+    net_conn(){};
+    virtual ~net_conn(){
+        printf("destruct net conn...\r\n");
+    };
+    virtual int read_data(char* data_p, int data_size) = 0;
+    virtual int write_data(char* data_p, int data_size) = 0;
+    virtual int get_fd() = 0;
 
     virtual int close_conn() = 0;
     virtual ADDR_INFO local_addr() = 0;

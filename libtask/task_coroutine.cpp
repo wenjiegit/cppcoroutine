@@ -18,7 +18,7 @@ void taskstart(unsigned int y, unsigned int x)
     task_coroutine* co_p = (task_coroutine*)(t->co_p);
 
 //print("taskexits %p\n", t);
-	co_p->taskexit(t);
+	co_p->taskexit();
 //print("not reacehd\n");
 }
 
@@ -33,7 +33,7 @@ task_coroutine::~task_coroutine() {
 
 }
 
-void task_coroutine::taskexit(Task_S *t)
+void task_coroutine::taskexit()
 {
 	_taskrunning->exiting = 1;
 	taskswitch();
@@ -88,13 +88,13 @@ void task_coroutine::sleep_wakeup() {
 
 	auto first_iter = _sleep_task_map.begin();
 	auto task_p = first_iter->second;
-    unsigned long long now_ul = now_ms();
+    long long now_ul = (long long)now_ms();
 
 	if (now_ul < task_p->alarmtime) {
-		//printf("sleep_wakeup not wakeup now:%u, alarmtime:%u\r\n", now_ul, task_p->alarmtime);
+		//printf("sleep wakeup not wakeup now:%u, alarmtime:%u\r\n", now_ul, task_p->alarmtime);
 		return;
 	}
-	//printf("sleep_wakeup now:%u, alarmtime:%u\r\n", now_ul, task_p->alarmtime);
+	//printf("sleep wakeup now:%u, alarmtime:%u\r\n", now_ul, task_p->alarmtime);
     _sleep_task_map.erase(first_iter);
 	
 	taskready(task_p);
@@ -207,6 +207,7 @@ void task_coroutine::schedule() {
 		    if(first_task->exiting){
 		    	if(!first_task->system)
 		    		_taskcount--;
+				first_task->func_obj = nullptr;
 		    	free(first_task);
 		    }
 		}
