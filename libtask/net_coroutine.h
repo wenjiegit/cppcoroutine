@@ -1,6 +1,7 @@
 #ifndef NET_COROUTINE_H
 #define NET_COROUTINE_H
 #include "net_base.h"
+#include "task_coroutine.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -10,16 +11,6 @@
 #include <string>
 
 namespace cpp_coroutine {
-
-#define INVALID_SOCKET (-1)
-
-#define READ_WAIT 1
-#define WRITE_WAIT 2
-
-int parseip(std::string& hostname, uint32_t *ip);
-int netlookup(std::string& hostname, unsigned int *ip);
-
-void net_init();
 
 class listen_coroutine : public net_listen {
 public:
@@ -35,12 +26,39 @@ public:
     virtual ADDR_INFO get_addr();
 
 private:
-    int fdnoblock(int fd);
-    void fdwait(int fd, int wait_way);
+    void accept_wait();
 
 private:
     int _fd;
+    int _current_epoll_state;
+    std::string _hostip;
+    int _port;
 };
+
+class net_coroutine: public net_conn {
+public:
+    net_coroutine(int fd);
+    net_coroutine(int fd, ADDR_INFO remote, ADDR_INFO local);
+    ~net_coroutine();
+
+    virtual int read_data(unsigned char* data_p, int data_size);
+    virtual int write_data(unsigned char* data_p, int data_size);
+
+    virtual int close_conn();
+    virtual ADDR_INFO local_addr();
+    virtual ADDR_INFO remote_addr();
+
+private:
+    void read_wait();
+    void write_wait();
+
+private:
+    int _fd;
+    int _current_epoll_state;
+    ADDR_INFO _local_info;
+    ADDR_INFO _remote_info;
+};
+
 }
 
 #endif //NET_COROUTINE_H

@@ -2,32 +2,30 @@
 
 using namespace cpp_coroutine;
 
-void demo_func(void* index, std::shared_ptr<task_coroutine> task_co_ptr) {
-    unsigned long long sleep_ms = (unsigned long long)(*(int*)index + 1000);
+void demo_func(int index) {
+    unsigned long long sleep_ms = (unsigned long long)(index + 1000);
 
-    if ((*(int*)index % 2) == 0) {
-        sleep_ms = (unsigned long long)(*(int*)index + 1000);
+    if ((index % 2) == 0) {
+        sleep_ms = (unsigned long long)(index + 1000);
     } else {
-        sleep_ms = (unsigned long long)(*(int*)index + 3000);
+        sleep_ms = (unsigned long long)(index + 3000);
     }
     
-    task_co_ptr->co_sleep(sleep_ms);
-    printf("demo_func index=%d, sleep_ms=%u, thread index=%d\r\n", 
-        *(int*)index, sleep_ms, task_co_ptr->get_thread_index());
+    coroutine_sleep(sleep_ms);
+    printf("demo_func index=%d, sleep_ms=%u\r\n", index, sleep_ms);
     return;
+}
+
+void coroutine_start() {
+    for (int index = 0; index < 500; index++) {
+        coroutine_create(std::bind(demo_func, index));
+    }
 }
 
 int main(int argn, char** argv) {
    
-    cppco::task_init();
-    int param_list[500];
+    task_main(coroutine_start);
 
-    for (int index = 0; index < 500; index++) {
-        param_list[index] = index;
-        cppco::coroutine_create(demo_func, &param_list[index]);
-    }
-
-    cppco::task_schedule();
 
     return 0;
 }

@@ -4,39 +4,33 @@
 #include <list>
 
 namespace cpp_coroutine {
-std::vector<std::shared_ptr<task_coroutine>> cppco::_coroutine_ptr_vec;
-std::mutex cppco::_mutex;
-bool cppco::_init = false;
+bool _init = false;
+std::shared_ptr<task_coroutine> _s_corouting_ptr = nullptr;
 
-int cppco::task_init() {
-    std::lock_guard<std::mutex> locker(_mutex);
+int task_main(std::function<void()> main_func_obj) {
     if (_init) {
         return 0;
     }
 
-    int proc_max = std::thread::hardware_concurrency() + 1;
-
-    for (int i = 0; i < proc_max - 1; i++) {
-        auto coroutine_ptr = std::make_shared<task_coroutine>();
-
-        coroutine_ptr->run();
-        _coroutine_ptr_vec.push_back(coroutine_ptr);
-        coroutine_ptr->set_thread_index(_coroutine_ptr_vec.size()-1);
-    }
+    _s_corouting_ptr = std::make_shared<task_coroutine>();
+    _s_corouting_ptr->taskcreate(main_func_obj);
+    _s_corouting_ptr->schedule();
 
     _init = true;
     return 0;
 }
 
-void cppco::task_schedule() {
-    task_init();
-    auto coroutine_ptr = std::make_shared<task_coroutine>();
-
-    _coroutine_ptr_vec.push_back(coroutine_ptr);
-    coroutine_ptr->set_thread_index(_coroutine_ptr_vec.size()-1);
-    coroutine_ptr->schedule();
-
+void coroutine_create(std::function<void()> func_obj) {
+    _s_corouting_ptr->taskcreate(func_obj);
     return;
+}
+
+void coroutine_sleep(unsigned long long ms) {
+    _s_corouting_ptr->co_sleep(ms);
+}
+
+std::shared_ptr<task_coroutine> get_coroutine() {
+    return _s_corouting_ptr;
 }
 
 }

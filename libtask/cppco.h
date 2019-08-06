@@ -4,35 +4,11 @@
 #include <vector>
 
 namespace cpp_coroutine {
-class cppco;
+int task_main(std::function<void()> main_func_obj);
 
-using running_func = void (*) (void*, std::shared_ptr<task_coroutine>);
+void coroutine_create(std::function<void()> func_obj);
 
-void run_task();
-
-class cppco {
-public:
-    static int task_init();
-    static void task_schedule();
-    
-    static int coroutine_create(running_func func_pm, void* param_p) {
-
-        int random_index = rand() % _coroutine_ptr_vec.size();
-
-        auto coroutine_obj = _coroutine_ptr_vec[random_index];
-
-        auto usua_func_obj = std::bind(func_pm, param_p, coroutine_obj);
-
-        coroutine_obj->taskcreate(usua_func_obj);
-        return random_index;
-    }
-
-private:
-    static std::vector<std::shared_ptr<task_coroutine>> _coroutine_ptr_vec;
-    static std::mutex _mutex;
-    static bool _init;
-};
-
+void coroutine_sleep(unsigned long long ms);
 }
 
 #endif //TASK_BASE_H

@@ -1,51 +1,18 @@
 #include "net_coroutine.h"
 #include "cppco.h"
+#include "net_base.h"
 
 #include <memory.h>
 #include <mutex>
 #include <sys/epoll.h>
+#include <unordered_map>
 
 namespace cpp_coroutine {
-static std::mutex net_g_mutex;
-static bool is_running;
+extern int s_epfd;
+extern std::unordered_map<int, Task_S*> s_epoll_task_map;//fd-->Task*
 
-const int MAXEVENTS = 1024;
-
-void net_co_onwork(void* param_p, std::shared_ptr<task_coroutine> self_co_ptr) {
-	int epfd = epoll_create(0);
-    struct epoll_event *events_list = (struct epoll_event*)malloc(MAXEVENTS, sizeof(struct epoll_event));
-
-    if (epfd <= 0) {
-		printf("epoll_create error.\r\n");
-		exit(0);
-	}
-
-    while(true) {
-		//if there are other tasks running, net has to wait for cpu.
-        while(self_co_ptr->taskyield() > 0) ;
-
-		int waitms = self_co_ptr->get_sleep_waitms();
-
-        int active_num = epoll_wait (efd, events, MAXEVENTS, -1);
-
-		for (int index; index < active_num; index++) {
-			struct epoll_event pollevent = events_list[index];
-			
-		}
-    };
-}
-
-void net_init() {
-	cppco::task_init();
-    std::lock_guard<std::mutex> locker(net_g_mutex);
-    if (!is_running) {
-        is_running = true;
-        cppco::coroutine_create(net_co_onwork, nullptr);
-    }
-}
-
-
-listen_coroutine::listen_coroutine():_fd(INVALID_SOCKET) {
+listen_coroutine::listen_coroutine():_fd(INVALID_SOCKET)
+    ,_current_epoll_state(0) {
 
 }
 
@@ -58,10 +25,6 @@ int listen_coroutine::createfd(bool is_tcp, std::string hostip, int port) {
 	struct sockaddr_in sa;
 	socklen_t sn;
 	unsigned int ip;
-
-    if (is_running) {
-        return INVALID_SOCKET;
-    }
 
     if (_fd != INVALID_SOCKET) {
         return _fd;
@@ -98,112 +61,194 @@ int listen_coroutine::createfd(bool is_tcp, std::string hostip, int port) {
 
 	fdnoblock(fd);
     _fd = fd;
+	_hostip = hostip;
+	_port = port;
 
 	return fd;
 }
 
-int listen_coroutine::acceptfd() {
+void listen_coroutine::accept_wait() {
+    if (_current_epoll_state == 0) {
+	    struct epoll_event ev;
+    
+        ev.data.fd = _fd;
+	    ev.events = EPOLLIN;
+		_current_epoll_state = EPOLLIN;
+		epoll_ctl(s_epfd, EPOLL_CTL_ADD, _fd, &ev);
+    }
+
+    auto running_task = get_coroutine()->get_runing_task();
+    s_epoll_task_map.insert(std::pair<int,Task*>(fd, running_task));
+	get_coroutine()->taskswitch();
+    return;
+}
+
+std::shared_ptr<net_conn>  listen_coroutine::accept_conn() {
     int accept_fd = INVALID_SOCKET;
 	int one;
 	struct sockaddr_in sa;
 	unsigned char *ip;
 	socklen_t len;
-	
-    if (is_running) {
-        return INVALID_SOCKET;
-    }
 
     if (_fd == INVALID_SOCKET) {
-        return _fd;
+        return nullptr;
     }
 
-	fdwait(_fd, READ_WAIT);
+    accept_wait();
 
 	len = sizeof sa;
 	if((accept_fd = accept(_fd, (sockaddr*)&sa, &len)) < 0){
-		return INVALID_SOCKET;
+		return nullptr;
 	}
 
 	fdnoblock(accept_fd);
 	one = 1;
 	setsockopt(accept_fd, IPPROTO_TCP, TCP_NODELAY, (char*)&one, sizeof one);
 
-    return accept_fd;
+    sockaddr_in sin;
+	ADDR_INFO remote_info;
+	ADDR_INFO local_info;
+
+    memncpy(&sin, &sa, sizoef(sin));
+    remote_info.ip = inet_ntoa(sin.sin_addr);
+	remote_info.port = sin.sin_port;
+
+    local_info.ip = _hostip;
+	local_info.port = _port;
+
+    std::shared_ptr<net_coroutine> accept_net_conn(accept_fd, remote_info, local_info);
+    return accept_net_conn;
 }
 
-void listen_coroutine::fdwait(int fd, int wait_way) {
+void listen_coroutine::close_conn() {
+	struct epoll_event ev;
+
+    ev.data.fd = _fd;
+	ev.events = EPOLLIN;
+    epoll_ctl(s_epfd, EPOLL_CTL_DEL, _fd, &ev);
+    close(_fd);
+	_fd = INVALID_SOCKET;
+}
+
+net_coroutine::net_coroutine(int fd):_fd(fd)
+    ,_current_epoll_state(0) {
 
 }
 
-int listen_coroutine::fdnoblock(int fd)
-{
-	return fcntl(fd, F_SETFL, fcntl(fd, F_GETFL)|O_NONBLOCK);
-}
-
-void listen_coroutine::onwork() {
+net_coroutine::net_coroutine(int fd, ADDR_INFO remote, ADDR_INFO local):_fd(fd)
+    ,_local_info(local)
+	,_remote_info(remote) {
 
 }
 
-int netlookup(std::string& hostname, unsigned int *ip)
-{
-	struct hostent *he;
+net_coroutine::~net_coroutine() {
 
-	if(parseip(hostname, ip) >= 0)
-		return 0;
-	
-	/* BUG - Name resolution blocks.  Need a non-blocking DNS. */
-	if((he = gethostbyname(hostname.c_str())) != 0){
-		*ip = *(uint32_t*)he->h_addr;
-		return 0;
+}
+
+int net_coroutine::read_data(char* data_p, int data_size) {
+    int rcv_len = 0;
+
+    do {
+        rcv_len = read(_fd, data_p, data_size);
+        if ((rcv_len < 0) && (errno == EAGAIN)) {
+			read_wait();
+        } else {
+            break;
+        }
+    } while(true);
+
+    return rcv_len;
+}
+
+int net_coroutine::write_data(char* data_p, int data_size) {
+    int rcv_len = 0;
+    int total_len = 0;
+
+    while (total_len < data_size) {
+        do {
+            rcv_len = write(_fd, data_p + total_len, data_size - total_len);
+            if ((rcv_len < 0) && (errno == EAGAIN)) {
+				write_wait();
+            } else {
+                break;
+            }
+        } while(true);
+
+        if (rcv_len < 0) {
+            return rcv_len;
+        }
+        if (rcv_len == 0) {
+            break;
+        }
+        total_len += rcv_len;
+    };
+
+    return total_len;
+}
+
+void net_coroutine::read_wait() {
+    int epoll_op_type = 0;
+	struct epoll_event ev;
+
+    ev.data.fd = _fd;
+	ev.events = EPOLLIN;
+
+    if (_current_epoll_state == 0) {
+        epoll_op_type = EPOLL_CTL_ADD;
+		_current_epoll_state = EPOLLIN;
+	} else {
+		epoll_op_type = EPOLL_CTL_MOD;
+		_current_epoll_state = EPOLLIN;
 	}
+    epoll_ctl(s_epfd, epoll_op_type, _fd, &ev);
+    
+	auto running_task = get_coroutine()->get_runing_task();
+    s_epoll_task_map.insert(std::pair<int,Task*>(fd, running_task));
 
-	return -1;
+	get_coroutine()->taskswitch();
+    return;
 }
 
-#define CLASS(p) ((*(unsigned char*)(p))>>6)
-int parseip(std::string& hostname, uint32_t *ip)
-{
-	unsigned char addr[4];
-	int i, x;
-	const char* hostip_sz = hostname.c_str();
-    char p[80];
+void net_coroutine::write_wait() {
+    int epoll_op_type = 0;
+	struct epoll_event ev;
 
-    strcpy(p, hostip_sz);
-	for(i=0; i<4 && *p; i++){
-		x = strtoul(p, &p, 0);
-		if(x < 0 || x >= 256)
-			return -1;
-		if(*p != '.' && *p != 0)
-			return -1;
-		if(*p == '.')
-			p++;
-		addr[i] = x;
-	}
+    ev.data.fd = _fd;
+	ev.events = EPOLLOUT;
 
-	switch(CLASS(addr)){
-	case 0:
-	case 1:
-		if(i == 3){
-			addr[3] = addr[2];
-			addr[2] = addr[1];
-			addr[1] = 0;
-		}else if(i == 2){
-			addr[3] = addr[1];
-			addr[2] = 0;
-			addr[1] = 0;
-		}else if(i != 4)
-			return -1;
-		break;
-	case 2:
-		if(i == 3){
-			addr[3] = addr[2];
-			addr[2] = 0;
-		}else if(i != 4)
-			return -1;
-		break;
+    if (_current_epoll_state == 0) {
+        epoll_op_type = EPOLL_CTL_ADD;
+		_current_epoll_state = EPOLLOUT;
+	} else {
+		epoll_op_type = EPOLL_CTL_MOD;
+		_current_epoll_state = EPOLLOUT;
 	}
-	*ip = *(uint32_t*)addr;
+    epoll_ctl(s_epfd, epoll_op_type, _fd, &ev);
+    
+	auto running_task = get_coroutine()->get_runing_task();
+    s_epoll_task_map.insert(std::pair<int,Task*>(fd, running_task));
+
+	get_coroutine()->taskswitch();
+    return;
+}
+
+int net_coroutine::close_conn() {
+    if (_current_epoll_state != 0) {
+		struct epoll_event ev;
+        ev.data.fd = _fd;
+	    ev.events = _current_epoll_state;
+		epoll_ctl(s_epfd, EPOLL_CTL_DEL, _fd, &ev);
+		_current_epoll_state = 0;
+	}
+	close(_fd);
+
 	return 0;
 }
 
+ADDR_INFO net_coroutine::local_addr() {
+	return _local_info;
+}
+
+ADDR_INFO net_coroutine::remote_addr() {
+	return _remote_info;
 }

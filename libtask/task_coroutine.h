@@ -14,37 +14,35 @@
 
 namespace cpp_coroutine {
 
+class task_coroutine;
+
 extern void net_co_onwork(void* param_p, std::shared_ptr<task_coroutine> self_co_ptr);
+extern void net_init();
+extern void net_run();
 
 class task_coroutine {
 public:
-    friend class cppco;
     friend void taskstart(unsigned int y, unsigned int x);
     friend void net_co_onwork(void* param_p, std::shared_ptr<task_coroutine> self_co_ptr);
+    friend void net_init();
+    friend void net_run();
 
     task_coroutine();
     ~task_coroutine();
 
-    int get_thread_index() {
-        return _thread_index;
-    }
-
-    //sleep time to give up process
-    unsigned long long co_sleep(unsigned long long sleep_ms);
-
-private:
-    //create coroutine task for function running
-    int taskcreate(std::function<void()> func_obj, uint stack=STACK_DEF_SIZE);
-
+    //start a new thread to run schedule function which is one dead loop function to run new task function.
+    void run();//not used in single system thread
     //schedule is one dead loop function to run new task function.
     void schedule();
-
-    void set_thread_index(int index) {
-        _thread_index = index;
+    //sleep time to give up process
+    unsigned long long co_sleep(unsigned long long sleep_ms);
+    //create coroutine task for function running
+    int taskcreate(std::function<void()> func_obj, uint stack=STACK_DEF_SIZE);
+    Task_S* get_runing_task() {
+        return _taskrunning;
     }
-    //start a new thread to run schedule function which is one dead loop function to run new task function.
-    void run();
 
+private:
     //sleeping function wakeup and taskready.
     void sleep_wakeup();
 
@@ -71,7 +69,7 @@ private:
     //set ready bit, and add it to task list.
     void taskready(Task_S* t);
 
-    //check whether task list is empty, blocked by _noempty_cond 
+    //check whether task list is empty
     bool task_list_empty();
 
     //set task state descr
@@ -86,10 +84,6 @@ private:
     int _tasknswitch;
     int _taskidgen;
     Context	_taskschedcontext;
-
-    std::mutex _mutex;
-    std::condition_variable_any _noempty_cond;
-    int _thread_index;
 };
 
 }
