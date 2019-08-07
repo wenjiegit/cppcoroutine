@@ -1,6 +1,8 @@
 #include "net_base.h"
 #include "task_coroutine.h"
 #include "task_pub.h"
+#include "colog/colog.h"
+
 #include <unordered_map>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -28,7 +30,8 @@ void net_init() {
     if (s_epfd <= 0) {
         exit(0);
     }
-    printf("epoll handle=%d\r\n", s_epfd);
+    //CO_LOGF(LOG_INFO, "epoll handle=%d, add:0x%08x, mod:0x%08x, del:0x%08x", 
+    //    s_epfd, EPOLL_CTL_ADD, EPOLL_CTL_MOD, EPOLL_CTL_DEL);
 
     get_coroutine()->taskcreate(net_run);
 
@@ -37,7 +40,7 @@ void net_init() {
 
 void net_run() {
     struct epoll_event ev_list[EVENT_LIST_COUNT];
-    printf("net_run is starting...\r\n");
+    //CO_LOG(LOG_INFO, "net_run is starting...");
 
     while(true) {
         int yield_ret = 0;
@@ -69,7 +72,7 @@ void net_run() {
                 if (read_fd < 0) {
                     continue;
                 }
-                printf("epoll active fd:%d\r\n", read_fd);
+                //CO_LOGF(LOG_INFO, "epoll active fd:%d", read_fd);
                 auto iter = s_epoll_task_map.find(read_fd);
                 if (iter != s_epoll_task_map.end()) {//active recv/send task
                     Task_S* net_task_item = (Task_S*)(iter->second);

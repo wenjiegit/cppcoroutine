@@ -91,11 +91,9 @@ void task_coroutine::sleep_wakeup() {
     long long now_ul = (long long)now_ms();
 
 	if (now_ul < task_p->alarmtime) {
-		//printf("sleep wakeup not wakeup now:%u, alarmtime:%u\r\n", now_ul, task_p->alarmtime);
-		return;
+        return;
 	}
-	//printf("sleep wakeup now:%u, alarmtime:%u\r\n", now_ul, task_p->alarmtime);
-    _sleep_task_map.erase(first_iter);
+	_sleep_task_map.erase(first_iter);
 	
 	taskready(task_p);
 }

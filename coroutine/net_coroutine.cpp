@@ -1,6 +1,7 @@
 #include "net_coroutine.h"
 #include "cppco.h"
 #include "net_base.h"
+#include "colog/colog.h"
 
 #include <memory.h>
 #include <mutex>
@@ -30,7 +31,7 @@ int listen_coroutine::createfd(bool is_tcp, std::string hostip, int port) {
 	unsigned int ip;
 
     if (_fd != INVALID_SOCKET) {
-		printf("createfd has inited...\r\n");
+		//CO_LOG(LOG_INFO, "createfd has inited...");
         return _fd;
     }
 
@@ -39,14 +40,14 @@ int listen_coroutine::createfd(bool is_tcp, std::string hostip, int port) {
 	sa.sin_family = AF_INET;
 	if(!hostip.empty()){
 		if(netlookup(hostip, &ip) < 0){
-			printf("netlookup hostip:%s\r\n", hostip.c_str());
+			//CO_LOGF(LOG_INFO, "netlookup hostip:%s", hostip.c_str());
 			return INVALID_SOCKET;
 		}
 		memmove(&sa.sin_addr, &ip, 4);
 	}
 	sa.sin_port = htons(port);
 	if((fd = socket(AF_INET, proto, 0)) < 0){
-		printf("create socket error\r\n");
+		//CO_LOG(LOG_INFO, "create socket error");
 		return INVALID_SOCKET;
 	}
 	
@@ -58,7 +59,7 @@ int listen_coroutine::createfd(bool is_tcp, std::string hostip, int port) {
 
 	if(bind(fd, (struct sockaddr*)&sa, sizeof sa) < 0){
 		close(fd);
-		printf("bind socket error\r\n");
+		//CO_LOG(LOG_INFO, "bind socket error");
 		return INVALID_SOCKET;
 	}
 
@@ -71,7 +72,7 @@ int listen_coroutine::createfd(bool is_tcp, std::string hostip, int port) {
 	_info.ip = hostip;
 	_info.port = port;
 
-    printf("bind socket, ip:%s, port:%d\r\n", hostip.c_str(), port);
+    //CO_LOGF(LOG_INFO, "bind socket, ip:%s, port:%d", hostip.c_str(), port);
 	return fd;
 }
 
@@ -82,7 +83,8 @@ void listen_coroutine::accept_wait() {
         ev.data.fd = _fd;
 	    ev.events = EPOLLIN;
 		_current_epoll_state = EPOLLIN;
-		printf("epoll op:0x%08x, event:0x%08x, _fd:%d, s_epfd:%d\r\n", EPOLL_CTL_ADD, EPOLLIN, _fd, s_epfd);
+		//CO_LOGF(LOG_INFO, "epoll op:0x%08x, event:0x%08x, _fd:%d, s_epfd:%d", 
+		//    EPOLL_CTL_ADD, EPOLLIN, _fd, s_epfd);
 		epoll_ctl(s_epfd, EPOLL_CTL_ADD, _fd, &ev);
     }
 
@@ -108,7 +110,7 @@ std::shared_ptr<net_conn> listen_coroutine::accept_conn() {
 	if((accept_fd = accept(_fd, (sockaddr*)&sa, &len)) < 0){
 		return nullptr;
 	}
-    printf("accept ok, accept_fd:%d\r\n", accept_fd);
+    //CO_LOGF(LOG_INFO, "accept ok, accept_fd:%d", accept_fd);
 	fdnoblock(accept_fd);
 	one = 1;
 	setsockopt(accept_fd, IPPROTO_TCP, TCP_NODELAY, (char*)&one, sizeof one);
@@ -145,13 +147,14 @@ net_coroutine::net_coroutine(int fd):_fd(fd)
 }
 
 net_coroutine::net_coroutine(int fd, ADDR_INFO remote, ADDR_INFO local):_fd(fd)
+    ,_current_epoll_state(0)
     ,_local_info(local)
 	,_remote_info(remote) {
 
 }
 
 net_coroutine::~net_coroutine() {
-	printf("net coroutine is destructing, fd:%d\r\n", _fd);
+	//CO_LOGF(LOG_INFO, "net coroutine is destructing, fd:%d", _fd);
     close_conn();
 }
 
@@ -236,6 +239,8 @@ void net_coroutine::read_wait() {
 	auto running_task = get_coroutine()->get_runing_task();
     s_epoll_task_map.insert(std::pair<int,Task_S*>(_fd, running_task));
 
+    //CO_LOGF(LOG_INFO, "read wait epoll, op:0x%08x, state:0x%08x, fd:0x%08x", 
+    //    epoll_op_type, _current_epoll_state, _fd);
 	get_coroutine()->taskswitch();
     return;
 }

@@ -10,10 +10,10 @@ C++FLAGS = $(COMPILER_FLAGS) -c -g -fPIC -Wall -std=c++11
 
 TARGET=cppco_demo
   
-INCLUDES = -I. -I../ -I../libtask
+INCLUDES = -I. -I../ -I../coroutine
 
 
-C++FILES = ../libtask/cppco.cpp ../libtask/task_coroutine.cpp ./cppco_demo.cpp
+C++FILES = ../coroutine/cppco.cpp ../coroutine/task_coroutine.cpp ./cppco_demo.cpp
 
 OBJFILE = $(CFILES:.c=.o) $(C++FILES:.cpp=.o)  
 

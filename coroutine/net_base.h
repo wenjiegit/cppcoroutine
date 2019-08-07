@@ -1,5 +1,6 @@
 #ifndef NET_BASE_H
 #define NET_BASE_H
+#include "colog/colog.h"
 #include <string>
 #include <memory>
 
@@ -33,7 +34,7 @@ class net_conn {
 public:
     net_conn(){};
     virtual ~net_conn(){
-        printf("destruct net conn...\r\n");
+        //CO_LOG(LOG_INFO, "destruct net conn...");
     };
     virtual int read_data(char* data_p, int data_size) = 0;
     virtual int write_data(char* data_p, int data_size) = 0;

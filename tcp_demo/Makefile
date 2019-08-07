@@ -10,10 +10,9 @@ C++FLAGS = $(COMPILER_FLAGS) -c -g -fPIC -Wall -std=c++11
 
 TARGET=tcp_echo_demo
   
-INCLUDES = -I. -I../ -I../libtask
+INCLUDES = -I. -I../ -I../coroutine
 
-
-C++FILES = ../libtask/net_base.cpp ../libtask/net_coroutine.cpp ../libtask/cppco.cpp ../libtask/task_coroutine.cpp ./tcp_echo_server.cpp
+C++FILES = ../colog/colog.cpp ../coroutine/net_base.cpp ../coroutine/net_coroutine.cpp ../coroutine/cppco.cpp ../coroutine/task_coroutine.cpp ./tcp_echo_server.cpp
 
 OBJFILE = $(CFILES:.c=.o) $(C++FILES:.cpp=.o)  
 
