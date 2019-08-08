@@ -83,8 +83,6 @@ void listen_coroutine::accept_wait() {
         ev.data.fd = _fd;
 	    ev.events = EPOLLIN;
 		_current_epoll_state = EPOLLIN;
-		//CO_LOGF(LOG_INFO, "epoll op:0x%08x, event:0x%08x, _fd:%d, s_epfd:%d", 
-		//    EPOLL_CTL_ADD, EPOLLIN, _fd, s_epfd);
 		epoll_ctl(s_epfd, EPOLL_CTL_ADD, _fd, &ev);
     }
 
@@ -173,7 +171,7 @@ int net_coroutine::read_data(char* data_p, int data_size) {
     } while(true);
 
     if (epoll_enable) {
-		remove_epoll_event(EPOLLOUT);
+		remove_epoll_event(EPOLLIN);
 	}
     return rcv_len;
 }
@@ -196,7 +194,7 @@ int net_coroutine::write_data(char* data_p, int data_size) {
 
         if (rcv_len < 0) {
 			if (epoll_enable) {
-				remove_epoll_event(EPOLLIN);
+				remove_epoll_event(EPOLLOUT);
 			}
             return rcv_len;
         }
@@ -205,7 +203,9 @@ int net_coroutine::write_data(char* data_p, int data_size) {
         }
         total_len += rcv_len;
     };
-
+	if (epoll_enable) {
+		remove_epoll_event(EPOLLOUT);
+	}
     return total_len;
 }
 

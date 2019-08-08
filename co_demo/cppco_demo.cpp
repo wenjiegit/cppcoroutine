@@ -13,7 +13,7 @@ void demo_func(int index) {
     }
     
     coroutine_sleep(sleep_ms);
-    CO_LOGF(LOG_INFO, "demo_func index=%d, sleep_ms=%u\r\n", index, sleep_ms);
+    CO_LOGF(LOG_INFO, "demo_func index=%d, sleep_ms=%u", index, sleep_ms);
     return;
 }
 

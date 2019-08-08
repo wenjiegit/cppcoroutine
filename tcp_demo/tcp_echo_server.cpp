@@ -16,7 +16,7 @@ void net_co_start_entry(int port) {
     net_init();
 
     std::shared_ptr<listen_coroutine> tcp_listen_ptr = std::make_shared<listen_coroutine>();
-    int ret_fd = tcp_listen_ptr->createfd(true, "127.0.0.1", 7000);
+    int ret_fd = tcp_listen_ptr->createfd(true, "0.0.0.0", 7000);
     if (ret_fd <= 0) {
         CO_LOG(LOG_INFO, "create fd error....");
         exit(0);
