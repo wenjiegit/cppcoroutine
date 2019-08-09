@@ -75,7 +75,9 @@ private:
     void taskready(Task_S* t);
 
     //check whether task list is empty
-    bool task_list_empty();
+    int task_list_size();
+
+    bool sleep_list_empty();
 
     //set task state descr
     void taskstate(const char *fmt, ...);

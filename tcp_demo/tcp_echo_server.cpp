@@ -8,11 +8,12 @@
 using namespace cpp_coroutine;
 
 #define BUFFER_SIZE 1024
+#define VERSION "0.1"
 
 void on_echo_work(std::shared_ptr<net_conn> net_conn_obj);
 
 void net_co_start_entry(int port) {
-    CO_LOGF(LOG_INFO, "net start listen port:%d", port);
+    CO_LOGF(LOG_INFO, "net start listen port:%d, version:%s", port, VERSION);
     net_init();
 
     std::shared_ptr<listen_coroutine> tcp_listen_ptr = std::make_shared<listen_coroutine>();
@@ -36,7 +37,6 @@ void net_co_start_entry(int port) {
 
 void on_echo_work(std::shared_ptr<net_conn> net_conn_obj) {
     char buffer[BUFFER_SIZE];
-
     memset(buffer, 0, BUFFER_SIZE);
 
     //CO_LOGF(LOG_INFO, "on_echo_work hostip:%s, port:%d, fd:%d", 
@@ -48,15 +48,19 @@ void on_echo_work(std::shared_ptr<net_conn> net_conn_obj) {
         net_conn_obj->close_conn();
         return;
     }
-    //CO_LOGF(LOG_INFO, "read data:%s, len:%d, fd:%d", 
-    //    buffer, read_len, net_conn_obj->get_fd());
+    //buffer[read_len] = 0;
+    //const char* data = buffer;
+    //CO_LOGF(LOG_INFO, "len:%d, fd:%d, read data:%s", 
+    //    read_len, net_conn_obj->get_fd(), data);
     int write_len = net_conn_obj->write_data(buffer, read_len);
     if (write_len <= 0) {
         net_conn_obj->close_conn();
         return;
     }
+    //buffer[write_len] = 0;
+    //const char* sndData = buffer;
     //CO_LOGF(LOG_INFO, "write data:%s, len:%d, fd:%d, use_count:%ld", 
-    //    buffer, write_len, net_conn_obj->get_fd(), net_conn_obj.use_count());
+    //    sndData, write_len, net_conn_obj->get_fd(), net_conn_obj.use_count());
     
     return;
 }

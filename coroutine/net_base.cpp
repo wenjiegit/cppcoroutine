@@ -40,7 +40,6 @@ void net_init() {
 
 void net_run() {
     struct epoll_event ev_list[EVENT_LIST_COUNT];
-    //CO_LOG(LOG_INFO, "net_run is starting...");
 
     while(true) {
         int yield_ret = 0;
@@ -50,10 +49,11 @@ void net_run() {
             yield_ret = get_coroutine()->taskyield();
         } while(yield_ret > 0);
 
-        bool sleep_empty = get_coroutine()->_sleep_task_map.empty();
+        bool sleep_empty = get_coroutine()->sleep_list_empty();
+        int task_size = get_coroutine()->task_list_size();
 
-        if (sleep_empty) {
-            ms = 0;
+        if (sleep_empty && (task_size <= 1)) {
+            ms = 100;
         } else {
             auto now_ts = now_ms();
             auto first_iter = get_coroutine()->_sleep_task_map.begin();
@@ -62,7 +62,7 @@ void net_run() {
             if (now_ts >= t->alarmtime) {
                 ms = 0;
             } else {
-                ms = 10;
+                ms = 30;
             }
         }
         int ev_count = epoll_wait(s_epfd, ev_list, EVENT_LIST_COUNT, ms);

@@ -1,4 +1,5 @@
 #include "colog.h"
+#include "pub/timeinfo.h"
 
 namespace cpp_coroutine {
 
@@ -79,6 +80,7 @@ int co_log::logf(int log_level, std::string info, std::string filename, unsigned
     msg.info = info;
     msg.filename = filename;
     msg.line = line;
+    msg.date_str = get_now_string();
     _queue.push(msg);
 
     int queue_len = _queue.size();
@@ -106,7 +108,7 @@ void co_log::on_work() {
         LOG_INFO_S msg;
         get_log(msg);
         const char* log_level_sz = get_leve_dscr(msg.log_level);
-        sprintf(szInfo, "[%s::%d][%s]: %s", 
+        sprintf(szInfo, "[%s][%s:%d][%s]: %s", msg.date_str.c_str(),
                 msg.filename.c_str(), msg.line, log_level_sz, msg.info.c_str());
         if (_filename.empty()) {
             printf(szInfo);

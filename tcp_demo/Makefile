@@ -10,7 +10,7 @@ C++FLAGS = $(COMPILER_FLAGS) -c -g -fPIC -Wall -std=c++11
 
 TARGET=tcp_echo_demo
   
-INCLUDES = -I. -I../ -I../coroutine
+INCLUDES = -I. -I../ -I../coroutine -I../pub
 
 C++FILES = ../colog/colog.cpp ../coroutine/net_base.cpp ../coroutine/net_coroutine.cpp ../coroutine/cppco.cpp ../coroutine/task_coroutine.cpp ./tcp_echo_server.cpp
 

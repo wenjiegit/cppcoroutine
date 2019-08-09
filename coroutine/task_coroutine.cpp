@@ -176,7 +176,11 @@ int task_coroutine::taskcreate(std::function<void()> func_obj, uint stack) {
 	return id;
 }
 
-bool task_coroutine::task_list_empty() {
+int task_coroutine::task_list_size() {
+    return _task_list.size();
+}
+
+bool task_coroutine::sleep_list_empty() {
     return _sleep_task_map.empty();
 }
 

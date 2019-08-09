@@ -8,6 +8,8 @@
 #include <fstream>
 #include <string>
 #include <stdarg.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 namespace cpp_coroutine {
 
@@ -20,6 +22,7 @@ typedef struct {
     int log_level;
     std::string info;
     std::string filename;
+    std::string date_str;
     int line;
 } LOG_INFO_S;
 
@@ -56,6 +59,16 @@ private:
     bool _running_flag;
 };
 
+inline void sprintbuffer(char* buffer, const char* fmt, ...) {
+    va_list       ap;
+ 
+    va_start(ap, fmt);
+    vsprintf(buffer, fmt, ap);
+    va_end(ap);
+
+    return;
+}
+
 #define LOG_INIT(filename) \
     co_log::get_instance()->set_logfilename(filename); \
     co_log::get_instance()->start(); \
@@ -63,23 +76,20 @@ private:
 #define LOG_DEINIT()                \
     co_log::get_instance()->stop(); \
 
-#define CO_LOGF(log_level, fmt, ...) \
-{ \
+#define CO_LOGF(log_level, ...) \
     if (co_log::get_instance()->get_loglevel() <= log_level)                 \
     {                                                                        \
         char buffer[512];                                                    \
-        sprintf(buffer, fmt, __VA_ARGS__);                                   \
-        co_log::get_instance()->logf(log_level, buffer, __FILE__, __LINE__); \   
+        sprintbuffer(buffer, __VA_ARGS__);                                   \
+        co_log::get_instance()->logf(log_level, buffer, __FILE__, __LINE__); \
     }                                                                        \
-} \
 
 #define CO_LOG(log_level, fmt) \
-{ \
     if (co_log::get_instance()->get_loglevel() <= log_level)                 \
     {                                                                        \
-        co_log::get_instance()->logf(log_level, fmt, __FILE__, __LINE__); \   
+        co_log::get_instance()->logf(log_level, fmt, __FILE__, __LINE__);    \
     }                                                                        \
-} \
+
 
 };
 #endif //COLOG_H
